@@ -1,5 +1,8 @@
 import { useGameStore } from '../gameStore';
 import { InterstitialAd, RewardedAd, AppOpenAd, AdEventType, RewardedAdEventType } from 'react-native-google-mobile-ads';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const INTERSTITIAL_ID = 'ca-app-pub-7106488480723857/7365847138';
 const REWARDED_ID = 'ca-app-pub-7106488480723857/5522904546';
@@ -13,6 +16,8 @@ let rewarded: RewardedAd;
 let appOpen: AppOpenAd;
 
 export function initializeAds() {
+  if (isExpoGo) return;
+
   interstitial = InterstitialAd.createForAdRequest(INTERSTITIAL_ID);
   rewarded = RewardedAd.createForAdRequest(REWARDED_ID);
   appOpen = AppOpenAd.createForAdRequest(APP_OPEN_ID);
@@ -37,9 +42,13 @@ export function initializeAds() {
 export const AdManager = {
   showRewardedAd: (onReward: () => void) => {
     return new Promise<void>((resolve) => {
-      // If ad isn't loaded (e.g., rapid clicks or bad connectivity), 
-      // we can choose to grant the reward instead of bricking the flow,
-      // or reject. We gracefully grant it here so UI is never stuck.
+      if (isExpoGo) {
+        console.log('[AdManager: ExpoGo] Resolving mock rewarded ad.');
+        useGameStore.getState().recordAdWatch();
+        onReward();
+        return resolve();
+      }
+
       if (!rewarded || !rewarded.loaded) {
         console.log('[AdMob] Rewarded Ad not loaded yet. Granting reward fallback.');
         onReward();
@@ -52,7 +61,6 @@ export const AdManager = {
       });
 
       const closeListener = rewarded.addAdEventListener(AdEventType.CLOSED, () => {
-        // Unsubscribe to avoid memory leaks
         rewardListener(); 
         closeListener();
         resolve();
@@ -68,6 +76,13 @@ export const AdManager = {
       const now = Date.now();
 
       if (now - lastInterstitialTime < INTERSTITIAL_COOLDOWN_MS) {
+        return resolve();
+      }
+
+      if (isExpoGo) {
+        console.log('[AdManager: ExpoGo] Skipping Interstitial mock.');
+        setLastInterstitialTime(Date.now());
+        recordAdWatch();
         return resolve();
       }
 
@@ -92,6 +107,13 @@ export const AdManager = {
       const now = Date.now();
 
       if (now - lastAppOpenTime < APP_OPEN_COOLDOWN_MS) {
+        return resolve();
+      }
+
+      if (isExpoGo) {
+        console.log('[AdManager: ExpoGo] Skipping AppOpen mock.');
+        setLastAppOpenTime(Date.now());
+        recordAdWatch();
         return resolve();
       }
 

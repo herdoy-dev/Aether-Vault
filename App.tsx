@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AppState, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import mobileAds from 'react-native-google-mobile-ads';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { useGameStore } from './src/gameStore';
 import { AdManager, initializeAds } from './src/ads/AdManager';
 
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 type Scene = 'home' | 'game';
 
 export default function App() {
@@ -17,12 +19,13 @@ export default function App() {
   useEffect(() => {
     loadFromDisk();
 
-    // Initialize the real Google Mobile Ads SDK and preload our ads
-    mobileAds()
-      .initialize()
-      .then(() => {
-        initializeAds();
-      });
+    if (!isExpoGo) {
+      mobileAds()
+        .initialize()
+        .then(() => {
+          initializeAds();
+        });
+    }
 
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
