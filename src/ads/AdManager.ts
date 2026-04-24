@@ -1,5 +1,7 @@
 import { useGameStore } from '../gameStore';
-import { InterstitialAd, RewardedAd, AppOpenAd, AdEventType, RewardedAdEventType } from 'react-native-google-mobile-ads';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const INTERSTITIAL_ID = 'ca-app-pub-7106488480723857/7365847138';
 const REWARDED_ID = 'ca-app-pub-7106488480723857/5522904546';
@@ -8,11 +10,29 @@ const APP_OPEN_ID = 'ca-app-pub-7106488480723857/9302367452';
 const INTERSTITIAL_COOLDOWN_MS = 2 * 60 * 1000; 
 const APP_OPEN_COOLDOWN_MS = 30 * 1000;         
 
-let interstitial: InterstitialAd;
-let rewarded: RewardedAd;
-let appOpen: AppOpenAd;
+// Dynamically bind classes only if native execution allows it
+let InterstitialAd: any, RewardedAd: any, AppOpenAd: any, AdEventType: any, RewardedAdEventType: any;
+
+if (!isExpoGo) {
+  try {
+    const admob = require('react-native-google-mobile-ads');
+    InterstitialAd = admob.InterstitialAd;
+    RewardedAd = admob.RewardedAd;
+    AppOpenAd = admob.AppOpenAd;
+    AdEventType = admob.AdEventType;
+    RewardedAdEventType = admob.RewardedAdEventType;
+  } catch (err) {
+    console.log('[AdManager] Caught missing native binding.');
+  }
+}
+
+let interstitial: any;
+let rewarded: any;
+let appOpen: any;
 
 export function initializeAds() {
+  if (isExpoGo || !InterstitialAd) return;
+
   interstitial = InterstitialAd.createForAdRequest(INTERSTITIAL_ID);
   rewarded = RewardedAd.createForAdRequest(REWARDED_ID);
   appOpen = AppOpenAd.createForAdRequest(APP_OPEN_ID);
@@ -37,8 +57,13 @@ export function initializeAds() {
 export const AdManager = {
   showRewardedAd: (onReward: () => void) => {
     return new Promise<void>((resolve) => {
-      // Gracefully bypass if the network timed out loading the video 
-      // ensuring your players are not permanently blocked from rewards.
+      // Bypasses wait lock smoothly in Expo Go
+      if (isExpoGo || !RewardedAd) {
+        useGameStore.getState().recordAdWatch();
+        onReward();
+        return resolve();
+      }
+
       if (!rewarded || !rewarded.loaded) {
         onReward();
         return resolve();
@@ -68,6 +93,12 @@ export const AdManager = {
         return resolve();
       }
 
+      if (isExpoGo || !InterstitialAd) {
+        setLastInterstitialTime(Date.now());
+        recordAdWatch();
+        return resolve();
+      }
+
       if (!interstitial || !interstitial.loaded) {
         return resolve();
       }
@@ -89,6 +120,12 @@ export const AdManager = {
       const now = Date.now();
 
       if (now - lastAppOpenTime < APP_OPEN_COOLDOWN_MS) {
+        return resolve();
+      }
+
+      if (isExpoGo || !AppOpenAd) {
+        setLastAppOpenTime(Date.now());
+        recordAdWatch();
         return resolve();
       }
 

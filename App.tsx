@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import mobileAds from 'react-native-google-mobile-ads';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { useGameStore } from './src/gameStore';
 import { AdManager, initializeAds } from './src/ads/AdManager';
 
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 type Scene = 'home' | 'game';
 
 export default function App() {
@@ -17,14 +18,17 @@ export default function App() {
   useEffect(() => {
     loadFromDisk();
 
-    try {
-      mobileAds()
-        .initialize()
-        .then(() => {
-          initializeAds();
-        });
-    } catch (err) {
-      console.error('[AdMob] Initialization skipped natively:', err);
+    if (!isExpoGo) {
+      try {
+        const mobileAds = require('react-native-google-mobile-ads').default;
+        mobileAds()
+          .initialize()
+          .then(() => {
+            initializeAds();
+          });
+      } catch (err) {
+        console.log('[AdMob] Native module unavailable:', err);
+      }
     }
 
     const subscription = AppState.addEventListener('change', nextAppState => {
