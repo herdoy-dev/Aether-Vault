@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { BannerAd as AdMobBanner, BannerAdSize } from 'react-native-google-mobile-ads';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -9,15 +8,29 @@ const BANNER_UNIT_ID = 'ca-app-pub-7106488480723857/9992010470';
 export function BannerAd() {
   const [failed, setFailed] = useState(false);
 
-  if (isExpoGo) {
+  // Fallback cleanly in Expo Go Environment or if explicitly failed
+  if (isExpoGo || failed) {
     return (
       <View style={[styles.container, styles.mockContainer]}>
-        <Text style={styles.mockText}>Banner Ad Disabled in Expo Go</Text>
+        <Text style={styles.mockText}>Banner Ad (Disabled in Expo Go)</Text>
       </View>
     );
   }
 
-  if (failed) return null;
+  // Dynamically require native components ensuring Expo Go never touches static paths bridging C++
+  let AdMobBanner: any;
+  let BannerAdSize: any;
+  try {
+    const admob = require('react-native-google-mobile-ads');
+    AdMobBanner = admob.BannerAd;
+    BannerAdSize = admob.BannerAdSize;
+  } catch (err) {
+    return (
+      <View style={[styles.container, styles.mockContainer]}>
+        <Text style={styles.mockText}>AdMob SDK Missing</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

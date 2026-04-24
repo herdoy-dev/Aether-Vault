@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import mobileAds from 'react-native-google-mobile-ads';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { GameScreen } from './src/screens/GameScreen';
@@ -20,11 +19,16 @@ export default function App() {
     loadFromDisk();
 
     if (!isExpoGo) {
-      mobileAds()
-        .initialize()
-        .then(() => {
-          initializeAds();
-        });
+      try {
+        const mobileAds = require('react-native-google-mobile-ads').default;
+        mobileAds()
+          .initialize()
+          .then(() => {
+            initializeAds();
+          });
+      } catch (err) {
+        console.log('[AdMob] Native module unavailable:', err);
+      }
     }
 
     const subscription = AppState.addEventListener('change', nextAppState => {
