@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import mobileAds from 'react-native-google-mobile-ads';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { useGameStore } from './src/gameStore';
-import { AdManager } from './src/ads/AdManager';
-import { MockAdOverlay } from './src/components/MockAdOverlay';
+import { AdManager, initializeAds } from './src/ads/AdManager';
 
 type Scene = 'home' | 'game';
 
@@ -16,6 +16,13 @@ export default function App() {
 
   useEffect(() => {
     loadFromDisk();
+
+    // Initialize the real Google Mobile Ads SDK and preload our ads
+    mobileAds()
+      .initialize()
+      .then(() => {
+        initializeAds();
+      });
 
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -28,7 +35,7 @@ export default function App() {
 
     setTimeout(() => {
       AdManager.showAppOpenAd();
-    }, 1000);
+    }, 2000);
 
     return () => {
       subscription.remove();
@@ -40,7 +47,6 @@ export default function App() {
       <StatusBar style="light" />
       {scene === 'home' && <HomeScreen onPlay={() => setScene('game')} />}
       {scene === 'game' && <GameScreen onHome={() => setScene('home')} />}
-      <MockAdOverlay />
     </View>
   );
 }
